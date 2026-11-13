@@ -20,12 +20,16 @@ Cada par de dimensões oscila numa frequência diferente, das rápidas às lenta
 
 Resultado: Cada linha combina “qual token é” e “onde ele está”, e $X$ (A matriz resultante após todos os processos) é a entrada da primeira camada do encoder. O decoder aplica o mesmo processo à sequência de saída deslocada (iniciada por `<bos>`).
 
-===========================================================================================================================================
-
 ### Etapa 6: **Encoder:**
- O encoder é uma pilha de $N$ camadas (paper usa $N = 6$) com pesos independentes. Uma camada (layer) é um conjunto de operações matemáticas organizadas. Cada camada recebe uma matriz $n \times d_{model}$ (mesmo tamanho da matriz $X$) e devolve outra de mesma forma. Cada camada contém duas subcamadas, com os seguintes processos:
+ O encoder é uma pilha de $N$ camadas (paper usa $N = 6$) com pesos independentes. Uma camada (layer) é um conjunto de operações matemáticas organizadas. Cada camada recebe uma matriz $n \times d_{model}$ (mesmo tamanho da matriz $X$) e devolve outra de mesma forma. Cada camada contém duas subcamadas, e logo após cada subcamada ocorre um processo intermediário, como representado na ilustração abaixo:
 
-#### **(a) Multi-head self-attention**
+        ┌─────────────────────── layer N ───────────────────────┐
+    ┌──►│  [attention] ──► [add&norm] ──► [FFN] ──► [add&norm]  │───┐
+    │   └───────────────────────────────────────────────────────┘   │
+    │                                                               │
+    └───────────────────────────────────────────────────────────────┘   
+
+#### **PRIMEIRA SUBCAMADA: Multi-head self-attention**
 
 - **Uma attention head é um mecanismo que aprende a identificar relações entre os tokens de uma sequência. Cada head pode aprender a prestar atenção em diferentes tipos de relações (muitas vezes a relação aprendida não é específica e bem definida);**
 - **No Transformer, cada token possui sua própria Query, Key e Value em cada head de cada camada**
@@ -40,12 +44,23 @@ No Multi-Head Attention, esse processo acontece em paralelo por meio de attentio
 
 Finalmente, as saídas das oito heads são concatenadas, formando novamente uma matriz de dimensão $n \times 512$ (no caso do paper, $64 \times 8 = 512$). Essa matriz passa por uma última transformação utilizando a matriz de pesos $W^O$, que combina as informações produzidas pelas diferentes heads.
 
-No Encoder, utiliza-se uma máscara de padding para impedir que os tokens direcionem atenção às posições artificiais (`<pad>`) utilizadas para completar sequências de tamanhos diferentes, atribuindo $-\infty$ aos scores dessas posições antes do Softmax.
+No Encoder, utiliza-se uma máscara de padding para impedir que os tokens direcionem atenção às posições artificiais (`<pad>`) utilizadas para completar sequências de tamanhos diferentes.
 
------------------------- CONTINUAR AQUI---------------------------------------------------------
+#### **PROCESSO INTERMEDIÁRIO: ADD & NORM:**
+Antes da próxima subcamada ocorre um processo, que é realizado em 3 passos: Dropout, Residual Connection (ADD) e LayerNorm (NORM).
+Assim que a matriz sai do mecanismo de attention (vou chamar de matriz $A$), é aplicado um dropout (já visto antes), com o mesmo motivo (a aplicação do dropout ajuda a reduzir a dependência excessiva de determinadas ativações e pode diminuir o overfitting), e mesma taxa (paper usa $P = 0.1$). Após esse dropout a matriz atual é somada com a matriz de entrada do mecanismo anterior (neste caso a matriz $X$ do mecanismo de atenção, mas quando esse processo ocorrer após FFN, será a matriz $Z$ de entrada do FFN); esse passo é a Residual Connection. Por último, são calculados a média e a variância de cada vetor (cada token) e aplica-se normalização, e logo após o resultado é multiplicado por dois parâmetros aprendidos ($\gamma$) e 
+($\beta$). Esse último passo é a LayerNorm, e a ideia é manter as ativações em uma escala mais controlada, contribuindo para a estabilidade do treinamento. As fórmulas a seguir ilustram este processo intermediário:
+
+Add&Norm após Attention: $\boxed{Z = LayerNorm(X + Dropout(A))}$
+
+Add&Norm após FFN: $\boxed{X = LayerNorm(Z + Dropout(F))}$
+
+Onde $X$ é a matriz de entrada de Attention, $A$ é a matriz de saída de attention, $Z$ é a matriz de entrada de FFN e $F$ é a matriz de saída de FFN.
+
+------------------------ CONTINUAR AQUI E REVISAR ANTERIOR ---------------------------------------------------------
 
 
-#### **(b) Feed-Forward Network (FFN):**
+#### **SEGUNDA SUBCAMADA: Feed-Forward Network (FFN):**
 Uma rede de duas camadas, $\max(0, zW_1 + b_1)W_2 + b_2$ ($512 \to 2048 \to 512$), aplicada a cada token de forma independente, com os mesmos pesos para todas as posições. A atenção é o único ponto em que os tokens trocam informação; a FFN processa de forma não linear a informação que cada token recebeu. Ela concentra cerca de 2/3 dos parâmetros da camada.
 
 Add & Norm. A saída de cada subcamada passa por dropout (0,1), é somada à entrada da subcamada (conexão residual) e normalizada por LayerNorm: $\text{LN}(x + \text{Dropout}(\text{Sublayer}(x)))$. O residual faz a subcamada aprender apenas um ajuste sobre a entrada, preservando a identidade do token, e garante um caminho direto para o gradiente. Por isso, toda subcamada devolve $d_{model}$ dimensões. A LayerNorm normaliza cada token ao longo das features (média 0, variância 1, seguida de $\gamma$ e $\beta$ aprendidos), estabilizando as ativações ao longo das camadas.
