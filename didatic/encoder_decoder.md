@@ -75,41 +75,117 @@ Entendendo a função FFN por partes: $z$ é a entrada e representa o vetor de u
 
 Após essa segunda subcamada ocorre outro Add&Norm, e então a primeira layer termina e a saída deste Add&Norm serve de entrada para a próxima layer, onde o processo se repete. Na última layer (e.g., a sexta layer), a saída é uma matriz $n \times 512$, chamada matriz $H$, que será usada no decoder no mecanismo de **Cross-Attention**.
 
-======================= CONTINUAR AQUI =======================================================
-
 ## Decoder
-### Etapa 1: **Tokenização:**
+### Etapa 0: **Conhecimento prévio (pré-decoder):**
+No transformer original, Encoder e Decoder compartilham a matriz de embeddings $E$, que associa os IDs dos tokens aos vetores. Nesse caso, utiliza-se um vocabulário conjunto (a matriz $E$ possui tokens inglês e alemão). Mantendo o exemplo tradutor, no Decoder a entrada é a **tradução esperada**. Por exemplo, caso a entrada do encoder fosse "The cat is sleeping", a entrada do decoder seria "Die Katze schläft". O Decoder é autoregressivo, ou seja, **seu objetivo é prever o próximo token da tradução considerando os tokens anteriores e as informações produzidas pelo Encoder (matriz $H$)**. Esse objetivo é ilustrado pela equação abaixo: 
 
-Etapa D0: Entrada do decoder
+$$P(y_t\mid y_{<t},H)$$
 
-O decoder recebe a sequência de saída (a tradução) deslocada uma posição para a direita: um token especial <bos> é inserido no início e o último token é removido. O alvo é a tradução seguida de <eos>. Assim, na posição $t$, o decoder recebe os tokens até $t$ e deve prever o token $t+1$ da tradução. Ex.: entrada <bos> die Katze trinkt Milch, alvo die Katze trinkt Milch <eos>.
+### Etapa 1: **Tokenização (pré-decoder):**
+A tokenização acontece da mesma forma do encoder (texto quebrado em palavras ou "pedaços" de palavras). Seguindo a frase de exemplo, a tokenização resultaria em [`"Die", "Katze", "schläft"`]. A diferença é que, após a tokenização, são inseridos tokens especiais que marcam o início (`<bos>`) e o fim (`<eos>`) da frase. O resultado então passa a ser [`"<bos>", "Die", "Katze", "schläft", "<eos>"`]. Antes de fornecer essa entrada, é necessário entender os mecanismos de **Teacher Forcing e Deslocamento (Shifted Right):**
 
-Etapa D1: Pré-processamento
+#### **Teacher Forcing:**
+O Teacher Forcing consiste em fornecer ao Decoder os tokens **anteriores corretos** ao invés de usar os tokens que o próprio modelo previu. Isso permite que, caso o modelo erre alguma previsão (comum no começo pois os parâmetros não estão ajustados), esse erro não comprometa os contextos das previsões seguintes. Isso não impede que a loss e o Backpropagation atualizem os parâmetros.
 
-A entrada passa pelas mesmas etapas do encoder: tokenização (mesmo vocabulário), embedding (mesma matriz $E$), escala por $\sqrt{d_{model}}$, positional encoding (posições contadas a partir de 0 na tradução) e dropout. O resultado é a matriz $Y$, de tamanho $m \times d_{model}$, onde $m$ é o número de tokens da tradução (não precisa ser igual a $n$).
+#### **Deslocamento:**
+Para implementar o Teacher Forcing, utiliza-se um procedimento chamado Shifted Right. A sequência completa da tradução é separada em duas sequências: a entrada do Decoder, que começa com `<bos>` e não inclui `<eos>`, e o target, que não inclui `<bos>` e termina com `<eos>`.
 
-Camada do decoder
+Seguindo o exemplo, a entrada [`"<bos>", "Die", "Katze", "schläft", "<eos>"`] seria separada na entrada real [`"<bos>", "Die", "Katze", "schläft"`] e no target [`"Die", "Katze", "schläft", "<eos>"`]. Cada posição da entrada é utilizada para prever o token correspondente do target. Assim, `<bos>` deve prever `Die`, `Die` deve prever `Katze`, e assim sucessivamente. A entrada real passa pelos processos seguintes normalmente, enquanto o target é usado apenas para calcular a loss (portanto não sofre embedding, escala, PE nem dropout).
 
-O decoder é uma pilha de $N$ camadas ($N = 6$ no paper) com pesos independentes. Cada camada recebe uma matriz $m \times d_{model}$ e devolve outra de mesma forma. Ela tem três subcamadas, cada uma seguida de Add & Norm (dropout, conexão residual e LayerNorm, como no encoder).
+**Um ponto de atenção:** durante o treinamento, é fornecida toda a sequência de entrada ao Decoder. Portanto, os tokens futuros já estão presentes na matriz. Para evitar que ocorra leakage, a primeira subcamada do Decoder aplica uma máscara causal (causal mask), que impede cada posição de prestar atenção em tokens posteriores. Assim, cada posição pode considerar apenas o token atual e os anteriores. Isso permite que todas as posições sejam processadas **em paralelo** durante o treinamento (grande vantagem computacional em relação aos modelos recorrentes tradicionais).
 
-PRIMEIRA SUBCAMADA: Self-attention mascarada. Igual à self-attention do encoder (Q, K e V vêm da mesma matriz, com 8 heads e $W^O$), mas com uma máscara causal: os scores das posições futuras ($j > i$) recebem $-\infty$ antes do softmax, o que zera seus pesos. Assim, cada posição só considera os tokens anteriores e ela mesma. A máscara é necessária porque, no treino, a tradução inteira entra de uma vez: sem ela, o modelo poderia “colar” o próximo token, que está presente na entrada deslocada.
+**Ideia principal:** o Decoder aprende a gerar uma sequência token por token, mas, graças ao Teacher Forcing e à máscara causal, consegue aprender todas essas previsões em paralelo durante o treinamento.
 
-SEGUNDA SUBCAMADA: Cross-attention. É o ponto em que o decoder consulta a frase de origem. As queries vêm do decoder (saída da subcamada anterior, $m \times d_{model}$) e as keys e values vêm de $H$, a saída do encoder ($n \times d_{model}$). A matriz de scores tem tamanho $m \times n$: cada posição da tradução decide quais tokens da frase de origem são relevantes para gerar o próximo token (um alinhamento suave). Não há máscara causal, apenas a de padding da origem. A mesma $H$ é usada nas $N$ camadas do decoder, mas cada camada tem seus próprios pesos de cross-attention.
+### Etapa 2: **Embedding, Escala, Positional Encoding e Dropout:**
+Assim como no Encoder, todas essas etapas são aplicadas no Decoder também, antes de começar as layers. Apenas recapitulando:
+- O embedding mapeia os tokens da entrada para seus vetores, gerando a matriz $X_{decoder}$; 
+- A escala multiplica a saída do embedding (a matriz $X_{decoder}$) por $\sqrt{d_{model}}$, para manter as duas informações (matriz e Positional Encoding) na mesma ordem de grandeza;
+- O Positional Encoding introduz explicitamente a posição de cada token no seu vetor (porque a posição de um token importa para o resultado).
+- Por último, o Dropout, etapa onde cada elemento da matriz tem probabilidade 0.1 de ser zerado. Isso funciona como regularização (força representações redundantes). Costuma reduzir o overfitting.
 
-TERCEIRA SUBCAMADA: Feed-forward. Idêntica à do encoder: $\max(0, zW_1 + b_1)W_2 + b_2$, aplicada a cada posição de forma independente.
+### Etapa 3: **Decoder Layers:**
+O Decoder é uma pilha de $N$ camadas ($N = 6$ no paper, assim como o Encoder). Cada camada recebe uma matriz $m \times d_{model}$ (onde $m$ é a quantidade de tokens da entrada real, após shifting) e devolve outra de mesma forma. Cada camada possui três subcamadas (uma a mais que o Encoder, a Cross Attention), e cada subcamada é seguida por Add&Norm (dropout, conexão residual e LayerNorm, como no encoder). A ilustração abaixo representa o fluxo de uma camada:
 
-Etapa D2: Camada de saída (Linear + Softmax)
+        ┌───────────────────────────────────────── layer N ────────────────────────────────────────────────┐
+    ┌──►│  [masked attention] ──► [add&norm] ──► [cross attention] ──► [add&norm] ──►[FFN] ──► [add&norm]  │───┐
+    │   └──────────────────────────────────────────────────────────────────────────────────────────────────┘   │
+    │                                                                                                          │
+    └──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-A saída da última camada, $D$ ($m \times d_{model}$), é multiplicada por $E^\top$ (a mesma matriz de embedding, transposta), gerando os logits ($m \times |V|$): cada vetor é comparado por produto escalar com o vetor de todos os tokens do vocabulário. O softmax, aplicado por linha, transforma os logits em uma distribuição de probabilidade sobre o vocabulário para cada posição.
+### PRIMEIRA SUBCAMADA: **Masked Self-attention:** 
+**A máscara causal é o mecanismo que permite treinar o Decoder em paralelo enquanto preserva a mesma restrição de informação da fase de inferência.**
+O mecanismo de atenção é praticamente idêntico ao Self-Attention do Encoder. A principal diferença é a utilização de uma máscara causal, que impede cada posição de consultar tokens futuros. Essa restrição é necessária porque o Decoder é autoregressivo, ou seja, aprende a prever o próximo token com base nos anteriores.
 
-Treino
+A entrada dessa subcamada é a matriz $X_{decoder}\in\mathbb{R}^{m \times 512}$, produzida após Embedding, Escala, Positional Encoding e Dropout. 
 
-No treino, a tradução correta é conhecida e entra inteira no decoder (teacher forcing). Graças à máscara causal, as $m$ previsões são feitas em paralelo numa única passada. A loss é a cross-entropy entre a distribuição prevista em cada posição e o token alvo, com média sobre as posições. O paper usa label smoothing (0,1), que evita que o modelo fique confiante demais.
+O mecanismo de atenção funciona da mesma forma que no Encoder: cada head utiliza três matrizes de pesos aprendidas ($W_Q$, $W_K$ e $W_V$) para transformar a entrada em Queries, Keys e Values. No paper, cada matriz possui dimensão $512 \times 64$, produzindo três representações de dimensão $m \times 64$. Os scores de atenção são calculados pelo produto entre Queries e Keys, dividido por $\sqrt{d_k}$: $C=\frac{QK^T}{\sqrt{d_k}}$. O resultado é uma matriz $C\in\mathbb{R}^{m\times m}$, que representa a compatibilidade entre cada Query e cada Key da sequência. A principal diferença aparece agora, antes da aplicação do Softmax: no Decoder, adicionamos uma matriz de máscara causal (M), que atribui $-\infty$ aos scores correspondentes às posições futuras ($j > i$) e mantém os demais inalterados, resultando em uma matriz diagonal. 
 
-Inferência
+Como $e^{-\infty}=0$, os scores mascarados recebem peso zero após o Softmax. Dessa maneira, cada posição pode considerar apenas a si própria e as posições anteriores, sem acessar informações dos tokens futuros. Após o Softmax, a matriz de pesos de atenção é multiplicada pelos Values: $O = S \cdot V$. O resultado é uma matriz $ O\in\mathbb{R}^{m\times64}$, contendo uma nova representação contextualizada para cada posição. Diferentemente do Encoder, essa representação incorpora apenas informações do token atual e dos anteriores.
 
-Na inferência, a tradução não existe ainda. O encoder roda uma única vez e gera $H$. O decoder começa com <bos>, prevê o próximo token a partir da última linha de $P$, acrescenta esse token à sua entrada e repete o processo, até gerar <eos> ou atingir um comprimento máximo. Em vez de escolher sempre o token mais provável (greedy), o paper usa beam search (largura 4), que mantém as sequências parciais mais prováveis a cada passo.
+Esse processo acontece paralelamente em cada attention head (no paper, $h = 8$), cada uma com seus próprios parâmetros. A mesma máscara causal é aplicada em todas as heads. Cada head produz uma matriz $m \times 64$, e as oito matrizes são concatenadas, produzindo uma representação $m \times 512$. Finalmente, essa matriz passa por uma projeção aprendida $W^O\in\mathbb{R}^{512\times512}$, que combina as informações produzidas pelas diferentes heads. O resultado é a matriz $A\in\mathbb{R}^{m\times512}$, que será enviada ao primeiro Add&Norm e depois para a próxima subcamada.
 
-Atualização dos parâmetros
+**Ideia principal:** enquanto a Self-Attention do Encoder permite que cada token considere informações de toda a sequência, a Masked Self-Attention do Decoder restringe essa consulta aos tokens atuais e anteriores.
 
-Ao fim de cada passo de treino (forward + backward), só os parâmetros são atualizados: $E$, os pesos de atenção ($W^Q, W^K, W^V, W^O$ de cada head e camada, incluindo a cross-attention), os $\gamma$ e $\beta$ das LayerNorms e os pesos das FFNs. As matrizes intermediárias ($X$, $Q$, $K$, $V$, $H$, $D$ etc.) são recalculadas a cada forward e servem apenas de caminho para o gradiente. O encoder não tem loss própria: aprende pelo gradiente que chega através de $H$ na cross-attention. Como $E$ é usada em três lugares (embedding do encoder, embedding do decoder e camada de saída), seu gradiente é a soma dessas três contribuições: pelas entradas, só as linhas dos tokens presentes no batch recebem gradiente; pela saída, todas as linhas recebem (a do token correto é aproximada do vetor do decoder e as demais são afastadas). $E$ é atualizada uma única vez, com o gradiente total.
+### Passo Intermediário: **Add & Norm:**
+Antes da próxima subcamada ocorre Add&Norm, assim como no Encoder.
+Assim que a matriz $A$ sai do mecanismo de masked self attention, é aplicado um Dropout (já visto antes). Após o Dropout é realizado Residual Connection: a matriz atual (pós Dropout) é somada com a matriz de entrada do mecanismo anterior (neste caso a matriz $X_{decoder}$). Por último, ocorre LayerNorm, onde são calculados a média e a variância de cada vetor e aplica-se normalização, e logo após o resultado é multiplicado e somado por dois parâmetros aprendidos ($\gamma$) e 
+($\beta$), respeitando a equação $$LayerNorm(x)=\gamma\odot\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}}+\beta$$
+
+### SEGUNDA SUBCAMADA: **Cross-attention:**
+**A Cross-Attention é o mecanismo que permite ao Decoder consultar as representações da frase original (produzidas pelo Encoder)** para obter informações relevantes à geração dos próximos tokens da tradução.
+
+Esse mecanismo é quase igual à Self-Attention, com uma diferença fundamental: as Queries são produzidas a partir do Decoder, enquanto as Keys e Values são produzidas a partir da matriz $H$ do Encoder. A entrada dessa subcamada é a matriz $Z\in\mathbb{R}^{m\times512}$, produzida após a Masked Self-Attention e seu Add&Norm. Além disso, a subcamada recebe a matriz $H\in\mathbb{R}^{n\times512}$, correspondente à saída final do Encoder. $m$ representa a quantidade de tokens da entrada do Decoder, enquanto $n$ representa a quantidade de tokens da frase original (entrada do encoder).
+
+**Intuitivamente, o Decoder formula as consultas por meio das Queries, enquanto as Keys e Values do Encoder fornecem as características utilizadas para determinar a relevância dos tokens originais.** 
+
+Assim como nos mecanismos anteriores, calculamos a compatibilidade entre Queries e Keys: $C=\frac{QK^T}{\sqrt{d_k}}$. Como Q possui $m$ linhas e K possui $n$ linhas, a matriz de scores possui dimensão $\boxed{C\in\mathbb{R}^{m\times n}}$. Cada linha representa uma posição do Decoder, enquanto cada coluna representa uma posição do Encoder. Dessa maneira, cada posição da tradução pode aprender quais posições da frase original são mais relevantes para produzir sua próxima previsão.
+
+A Cross-Attention não utiliza máscara causal, pois a frase original já foi inteiramente processada pelo Encoder e está disponível para consulta. Entretanto, pode ser utilizada uma máscara de padding para impedir que o Decoder atribua atenção às posições artificiais (<pad>) da sequência original.
+
+Após aplicar a máscara de padding, quando necessária, o Softmax é aplicado por linha, produzindo pesos que indicam a importância relativa de cada posição do Encoder para determinada Query do Decoder. Cada linha soma 1, considerando apenas as posições válidas.
+
+Depois, a matriz de pesos é multiplicada pela matriz de Values: $\boxed{O = S \cdot V}$. Como $S\in\mathbb{R}^{m\times n}$ e $V\in\mathbb{R}^{n\times64}$, a saída possui dimensão $\boxed{O\in\mathbb{R}^{m\times64}}$. Essa operação produz, para cada posição do Decoder, uma representação construída a partir de uma combinação ponderada das informações do Encoder.
+
+No paper, esse processo acontece em paralelo em oito attention heads ($h=8$), cada uma com suas próprias matrizes de projeção. Cada head produz uma matriz de dimensão (m\times64). As oito matrizes são concatenadas, formando uma representação $m\times512$, que passa pela projeção final $W_O\in\mathbb{R}^{512\times512}$. O resultado é $\boxed{A\in\mathbb{R}^{m\times512}}$
+
+A mesma matriz $H$ é utilizada nas seis camadas do Decoder. Entretanto, cada camada possui suas próprias matrizes de pesos de Cross-Attention. Portanto, as diferentes camadas podem aprender maneiras distintas de consultar e combinar as informações da frase original. Além disso, as Queries mudam ao longo das camadas, pois são produzidas a partir das representações progressivamente transformadas pelo Decoder.
+
+**A ideia principal é que a posição do Decoder consiga recuperar informações relevantes da frase original**, considerando o histórico da tradução que já foi processado pela Masked Self-Attention.
+
+### Passo Intermediário: **Add & Norm:**
+Antes da próxima subcamada ocorre Add&Norm, assim como no Encoder.
+
+### TERCEIRA SUBCAMADA: **Feed-Forward Network (FFN):**
+Essa subcamada é idêntica à do Encoder. Apenas revisando:
+A FFN é uma pequena rede neural com duas camadas lineares ($W_1$ e $W_2$) e uma função de ativação não linear (ReLU) entre elas.
+
+$$\boxed{\max(0, zW_1 + b_1)W_2 + b_2}$$
+
+Revisando: o primeiro passo é a primeira camada linear $W_1$ (uma matriz $\mathbb{R}^{512\times2048}$) e a soma do resultado a um bias $b_1$; a ideia é aumentar o espaço para possibilitar combinações de características mais elaboradas. Logo após, passa pela função ReLU (transforma valores negativos em 0 e mantém os positivos); a ideia é introduzir não-linearidade (para permitir o aprendizado de relações mais complexas). Por último, o resultado passa pela segunda camada linear (uma matriz $\mathbb{R}^{2048\times512}$), que devolve à matriz seu tamanho original.
+
+### Passo Intermediário: **Add & Norm:**
+Antes da saída ocorre Add&Norm, assim como no Encoder.
+
+### Etapa 4: **Saída (Linear + Softmax):**
+Após passar pelas seis camadas do Decoder, obtemos uma matriz $D\in\mathbb{R}^{m\times d_{model}}$, onde $m$ é a quantidade de tokens da entrada do Decoder e $d_{model}=512$. Cada linha contém uma representação contextualizada de uma posição da tradução, construída a partir das informações dos tokens anteriores (Masked Self-Attention), da frase original (Cross-Attention) e das transformações não lineares realizadas pelas FFNs.
+
+**O objetivo dessa etapa é transformar cada vetor de 512 dimensões em uma distribuição de probabilidades sobre todos os tokens do vocabulário, permitindo prever o próximo token da tradução.**
+
+#### Primeira operação — Linear:
+A matriz $D$ é multiplicada por uma matriz de projeção para o vocabulário (no paper, essa projeção é feita pela matriz de embeddings transposta $E^T$): $\boxed{L=D \cdot E^T}$. Como $D\in\mathbb{R}^{m\times512}$ e $E^T\in\mathbb{R}^{512\times|V|}$, obtemos $\boxed{L\in\mathbb{R}^{m\times|V|}}$. O resultado é uma matriz de logits, em que cada linha corresponde a uma posição do Decoder e cada coluna corresponde a um token do vocabulário. Esses logits são scores numéricos, não probabilidades. Cada logit é calculado por meio do produto escalar entre a representação da posição do Decoder e o embedding de um token candidato. Portanto, cada vetor produzido pelo Decoder é comparado com os embeddings de todos os tokens do vocabulário. Quanto maior o logit, maior será a probabilidade relativa atribuída ao token após o Softmax.
+
+#### Segunda operação — Softmax:
+O Softmax é aplicado individualmente a cada linha da matriz de logits:
+$$\boxed{P_{ij}=\frac{e^{L_{ij}}}{\sum_{k=1}^{|V|}e^{L_{ik}}}}$$
+
+O resultado é uma matriz $\boxed{P\in\mathbb{R}^{m\times|V|}}$, onde cada linha representa uma distribuição de probabilidades sobre o vocabulário, indicando a probabilidade atribuída a cada possível próximo token. As probabilidades são positivas e somam 1 em cada linha.
+
+#### **Treinamento:**
+Durante o treinamento, o Decoder recebe a tradução correta deslocada (Teacher Forcing), e a máscara causal impede cada posição de acessar os tokens futuros. Isso permite calcular as distribuições de probabilidades de todas as posições simultaneamente.
+
+Essas distribuições são comparadas com os targets por meio da função de perda (Cross-Entropy, com label smoothing no paper original). A loss é utilizada pelo Backpropagation para calcular os gradientes e atualizar os parâmetros do Encoder e do Decoder, incluindo a matriz compartilhada de embeddings $E$.
+
+#### **Inferência:**
+Durante a inferência, não existe uma tradução esperada. O Decoder começa com `<bos>` e gera os tokens progressivamente, utilizando suas próprias previsões anteriores como entrada das próximas iterações. A cada iteração, a distribuição de probabilidades da última posição disponível é utilizada para selecionar o próximo token.
+
+O Softmax não escolhe diretamente o token: ele produz as probabilidades. A escolha é realizada por uma estratégia de decodificação, como Greedy Decoding ou Beam Search (utilizada no paper original). Depois de selecionar um token, ele é adicionado à sequência, e o processo se repete até que o modelo produza `<eos>` ou alcance algum limite.
