@@ -1,6 +1,6 @@
 # Especificações do projeto
 
-> Este arquivo é o espelho do projeto: toda decisão tomada (ou alterada) durante a implementação deve ser registrada aqui, com sua justificativa.
+> Este arquivo é o espelho do projeto: toda decisão tomada (ou alterada) durante a implementação é registrada aqui, com sua justificativa.
 
 ## Objetivo
 Implementar a estrutura de um Transformer decoder-only, seu loop de treinamento e sua avaliação para converter datas em português para o padrão ISO `YYYY-MM-DD`. Fazer todo o modelo "à mão" e usar PyTorch pronto apenas quando a implementação for muito complicada / desnecessária / custosa (mal otimizada). A divisão exata está na seção [O que é implementado à mão](#o-que-é-implementado-à-mão).
@@ -258,7 +258,7 @@ Topologia do servidor (`lscpu -e`): 2 sockets/nós NUMA, 10 núcleos físicos ca
 - Os irmãos de hyperthreading (20–39) ficam ociosos, para que cada thread tenha um núcleo físico exclusivo.
 - `torch.set_num_threads(5)` e `torch.set_num_interop_threads(1)`.
 - Limitação conhecida: Exp. 1 e Exp. 2 dividem o cache L3 e a banda de memória do socket 0, enquanto o Exp. 3 está sozinho no socket 1. Com modelos deste tamanho, o efeito esperado é pequeno.
-- O servidor é compartilhado, mas é considerado ocioso durante os experimentos.
+- O servidor é restrito
 
 ---
 
@@ -327,7 +327,8 @@ attention/
 │   ├── train.py                # treino/validação/checkpoints/early stopping
 │   ├── metrics.py              # funções de métrica (usadas por train.py e evaluate.py)
 │   ├── evaluate.py             # métricas de teste e OOD
-│   └── report.py               # análise local: tabela comparativa e curvas de aprendizado
+│   ├── report.py               # análise local: tabela comparativa e curvas de aprendizado
+│   └── demo.py                 # demonstração interativa com os modelos treinados
 ├── tests/
 │   └── test_essentials.py      # os 4 testes essenciais (pytest)
 ├── pytest.ini                  # pytest: testes em tests/, módulos importados de src/
@@ -342,15 +343,7 @@ attention/
     └── exp3/
 ```
 
-Tabela comparativa (pode sofrer alterações):
-
-| Experimento | Params | Melhor época | Train loss | Val loss | Test loss | Val exact match | Test exact match | OOD exact match | Tempo |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Exp. 1 | — | — | — | — | — | — | — | — | — |
-| Exp. 2 | — | — | — | — | — | — | — | — | — |
-| Exp. 3 | — | — | — | — | — | — | — | — | — |
-
-Analisar trade-off entre **capacidade, acurácia e custo**.
+Analisar trade-off entre **capacidade, acurácia e custo**. Os resultados estão na seção [Resultados](#resultados).
 
 ### Relatório (`src/report.py`, roda na máquina local)
 Lê os resultados de `runs/expN/` (experimentos incompletos são pulados) e gera, versionados no git:
@@ -362,9 +355,61 @@ Lê os resultados de `runs/expN/` (experimentos incompletos são pulados) e gera
 
 Cada experimento tem uma cor fixa em todos os gráficos (azul, laranja, verde-água).
 
+### Demonstração (`src/demo.py`, roda na máquina local)
+Carrega o `best.pt` dos experimentos e, para cada data digitada, mostra a resposta de cada modelo lado a lado, se está correta (✓/✗; a resposta esperada é calculada por regra quando a entrada segue o formato "D de mês de AAAA") e a geração caractere por caractere com a **confiança** de cada escolha (probabilidade da softmax do token escolhido; abaixo de 90% é marcada com `!`). Entradas com caracteres fora do vocabulário ou longas demais para o contexto recebem uma mensagem, sem interromper a demonstração.
+
+```bash
+python src/demo.py                                    # modo interativo ("sair" encerra)
+python src/demo.py "25 de dezembro de 2023" "1 de janeiro de 2100"
+python src/demo.py --models exp2                      # só um modelo (ou exp1,exp3)
+```
+
 ### Fora de escopo (decidido)
 - **Experimento de quantidade de dados** (treinar com 1k/5k/20k exemplos para medir eficiência de dados): responderia uma pergunta diferente das curvas de aprendizado (quantos exemplos *distintos* cada capacidade precisa), mas não será executado por falta de tempo. Fica como próximo passo sugerido.
 - **Múltiplas seeds por configuração**: também fica como próximo passo.
+
+---
+
+## Resultados
+
+Experimentos rodados no servidor (5 threads cada, em paralelo; afinidade confirmada nos `config.json`: 0–4, 5–9 e 10–14). Detalhes completos em `runs/report.md` e `runs/figures/`.
+
+| Experimento | Params | Melhor época | Train loss | Val loss | Test loss | Val EM | Test EM | OOD EM | Tempo |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Exp. 1 (d=32, L=2) | 26.560 | 50 / 50 | 1,66e-03 | 5,62e-06 | 6,11e-06 | 100% | 100% | 100% | 10,7 min |
+| Exp. 2 (d=64, L=3) | 152.000 | 50 / 50 | 3,13e-06 | 8,23e-08 | 8,21e-08 | 100% | 100% | 100% | 20,5 min |
+| Exp. 3 (d=128, L=4) | 796.672 | 35 / 40 | 2,56e-08 | 0 (*) | 0 (*) | 100% | 100% | 100% | 42,0 min |
+
+Melhor época = época de menor val loss / épocas rodadas. Tempo inclui a validação e o monitoramento OOD de cada época. (*) Ver "Ressalvas".
+
+### Principais achados
+1. **Os três modelos resolvem a tarefa por completo:** 100% de exact match no teste (2.500) e no OOD (18.262), sem nenhum erro, inclusive nas variantes raras. Até o menor modelo (26 mil parâmetros) é suficiente; a diferença entre capacidades aparece na dinâmica do treino e no custo:
+
+   | | Exp. 1 | Exp. 2 | Exp. 3 |
+   |---|---:|---:|---:|
+   | 1ª época com 100% de val EM | 11 | **3** | 8 |
+   | OOD (amostra) chega a 100% | ~25 | **4** (uma oscilação a 99,7% na época 9) | 9, com recaídas (ex.: 99,5% na época 25) |
+   | Tempo por época | 13 s | 26 s | 63 s |
+
+   **O Exp. 2 é o melhor custo-benefício:** converge mais rápido e de forma mais estável que o Exp. 3, que tem 5× mais parâmetros e oscila (ex.: val EM cai para 97,4% na época 13). Hipótese: Post-LN é mais instável em redes mais profundas com LR `1e-3`, o que reforça a motivação do warmup.
+2. **Ordem de aprendizado dos campos:** mês e dia são aprendidos antes do ano (Exp. 1, época 3: mês 97%, dia 96%, ano 51%). Copiar os 4 dígitos do ano é a parte mais difícil da tarefa — mais do que traduzir o nome do mês para o número.
+3. **A generalização OOD chega depois da validação:** no Exp. 1, a val EM é 99,9% na época 7 enquanto o OOD está em 93%, com praticamente todo o erro no ano. O modelo primeiro aprende uma solução que funciona para os anos que conhece e só depois passa a copiar o ano de fato.
+4. **Variantes:** no Exp. 1, o dia com 1 dígito fica atrás (80% × 98% na época 5) e só se iguala na época 11; o mês com maiúscula nunca fica atrás. Nos modelos maiores a diferença some nas primeiras épocas.
+5. **Sem overfitting:** a val loss do Exp. 1 e do Exp. 2 caiu até a época 50 (melhor checkpoint = última época).
+
+### Ressalvas
+- **Early stopping do Exp. 3 foi artefato numérico, não overfitting.** A val loss chegou a exatamente `0.0`: em float32, quando a probabilidade do token correto fica tão próxima de 1 que `log(p)` arredonda para 0, a loss não pode mais "melhorar estritamente", e o early stopping dispara 5 épocas depois. O mesmo vale para a test loss `0`.
+- **O OOD de 2050–2099 testa dezenas nunca vistas, não séculos nunca vistos.** Testes manuais (via `demo.py`) mostram que **todos os modelos erram anos com prefixo de século nunca visto**: `1 de janeiro de 2100` → `2000-01-01` (Exp. 1), `1900-01-01` (Exp. 2), `1000-01-01` (Exp. 3); `15 de março de 2150` → `2050-03-15` nos três. O prefixo do século (18/19/20) foi aprendido como uma categoria, não como dígitos a copiar. A confiança expõe parte disso (o Exp. 2 hesita ~50/50 no primeiro dígito de 2100), mas o Exp. 1 erra com 99,9% de confiança. `04 de julho de 1776` (século 17, nunca visto): Exp. 1 e Exp. 3 acertam, Exp. 2 responde `1876`.
+- **O modelo converte o formato, não valida datas:** `31 de fevereiro de 2023` → `2023-02-31` nos três, o que é coerente com a definição da tarefa.
+- Uma única seed por configuração: as diferenças de velocidade e estabilidade entre experimentos não têm barra de erro.
+
+### Próximos passos sugeridos
+1. **OOD de séculos nunca vistos** (ex.: 2100–2199 e 1600–1799), para medir a cópia real de dígitos; e, para que ela seja aprendida, treinar com anos de mais séculos.
+2. **Experimento de quantidade de dados** (1k/5k/20k exemplos), já que com 20k todas as capacidades saturam.
+3. **Múltiplas seeds** por configuração, para dar barras de erro às diferenças de convergência.
+4. **Mapas de atenção** (a partir dos `best.pt`): verificar se as heads que geram o ano "olham" para os dígitos do ano na entrada.
+5. Comparar **Pre-LN × Post-LN** no Exp. 3, para testar a hipótese da instabilidade.
+6. Formatos mais variados (mês abreviado, `1º`, maiúsculas completas), que hoje geram erro de vocabulário.
 
 ---
 
@@ -379,4 +424,5 @@ Cada experimento tem uma cor fixa em todos os gráficos (azul, laranja, verde-á
 7. `evaluate.py` → test loss, exact match e demais métricas (teste e OOD).
 8. Testes essenciais (`tests/`).
 9. Configs + shell scripts → um script por experimento + script organizador.
-10. Produzir tabela comparativa, curvas de aprendizado (loss e exact match por época) de cada modelo, exemplos gerados e discussão dos resultados.
+10. `report.py` → tabela comparativa, curvas de aprendizado e diagnóstico; discussão dos resultados (seção Resultados).
+11. `demo.py` → demonstração interativa com os modelos treinados.

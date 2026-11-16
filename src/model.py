@@ -23,7 +23,7 @@ import torch.nn.functional as F
 
 @dataclass
 class ModelConfig:
-    """Hiperparâmetros da arquitetura (os nomes seguem o paper)."""
+    """Hiperparâmetros da arquitetura (mesmos nomes do paper)."""
     vocab_size: int
     d_model: int
     n_layers: int
