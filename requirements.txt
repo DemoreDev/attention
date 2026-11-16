@@ -1,0 +1,9 @@
+# PyTorch somente CPU (o índice abaixo evita baixar as bibliotecas CUDA)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
+
+# Testes
+pytest==9.2.0
+
+# Gráficos (curvas de aprendizado; usado só na máquina local)
+matplotlib==3.11.2
