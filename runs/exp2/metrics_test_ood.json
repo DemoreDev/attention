@@ -1,0 +1,89 @@
+{
+  "n_examples": 18262,
+  "loss": 1.0742021124304806e-07,
+  "exact_match": 1.0,
+  "char_accuracy": 1.0,
+  "field_accuracy": {
+    "year": 1.0,
+    "month": 1.0,
+    "day": 1.0
+  },
+  "valid_output_rate": 1.0,
+  "exact_match_by_day_format": {
+    "dia 1-9 com 1 dígito": {
+      "n": 1094,
+      "exact_match": 1.0
+    },
+    "dia 1-9 com 2 dígitos": {
+      "n": 4306,
+      "exact_match": 1.0
+    },
+    "dia 10-31": {
+      "n": 12862,
+      "exact_match": 1.0
+    }
+  },
+  "exact_match_by_month_format": {
+    "mês maiúsculo": {
+      "n": 3630,
+      "exact_match": 1.0
+    },
+    "mês minúsculo": {
+      "n": 14632,
+      "exact_match": 1.0
+    }
+  },
+  "exact_match_by_month": {
+    "01": {
+      "n": 1550,
+      "exact_match": 1.0
+    },
+    "02": {
+      "n": 1412,
+      "exact_match": 1.0
+    },
+    "03": {
+      "n": 1550,
+      "exact_match": 1.0
+    },
+    "04": {
+      "n": 1500,
+      "exact_match": 1.0
+    },
+    "05": {
+      "n": 1550,
+      "exact_match": 1.0
+    },
+    "06": {
+      "n": 1500,
+      "exact_match": 1.0
+    },
+    "07": {
+      "n": 1550,
+      "exact_match": 1.0
+    },
+    "08": {
+      "n": 1550,
+      "exact_match": 1.0
+    },
+    "09": {
+      "n": 1500,
+      "exact_match": 1.0
+    },
+    "10": {
+      "n": 1550,
+      "exact_match": 1.0
+    },
+    "11": {
+      "n": 1500,
+      "exact_match": 1.0
+    },
+    "12": {
+      "n": 1550,
+      "exact_match": 1.0
+    }
+  },
+  "n_errors": 0,
+  "error_examples": [],
+  "eval_time_s": 38.8
+}

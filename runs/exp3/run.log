@@ -1,0 +1,45 @@
+04:05:07 | exp3: 796,672 parâmetros | 20000 treino / 2500 validação | 313 passos por época | threads=5 | CPUs=[10, 11, 12, 13, 14]
+04:06:13 | época  1 | train_loss 1.409e+00 | val_loss 8.988e-02 | val_EM 0.6788 (dia 1 díg. 0.600, mês maiúsc. 0.680) | OOD_EM 0.0744 | lr 1.00e-03 | 66.3s | *melhor*
+04:07:17 | época  2 | train_loss 4.500e-02 | val_loss 1.677e-03 | val_EM 0.9980 (dia 1 díg. 0.993, mês maiúsc. 0.998) | OOD_EM 0.7244 | lr 9.99e-04 | 64.0s | *melhor*
+04:08:23 | época  3 | train_loss 1.423e-02 | val_loss 2.043e-03 | val_EM 0.9936 (dia 1 díg. 0.980, mês maiúsc. 0.998) | OOD_EM 0.9584 | lr 9.96e-04 | 65.4s
+04:09:33 | época  4 | train_loss 1.112e-02 | val_loss 3.611e-03 | val_EM 0.9892 (dia 1 díg. 0.987, mês maiúsc. 0.985) | OOD_EM 0.9884 | lr 9.91e-04 | 70.9s
+04:10:37 | época  5 | train_loss 8.954e-03 | val_loss 7.575e-04 | val_EM 0.9972 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 0.9988 | lr 9.85e-04 | 63.9s | *melhor*
+04:11:42 | época  6 | train_loss 7.877e-03 | val_loss 1.903e-03 | val_EM 0.9952 (dia 1 díg. 0.920, mês maiúsc. 0.996) | OOD_EM 0.9804 | lr 9.77e-04 | 64.9s
+04:12:46 | época  7 | train_loss 5.536e-03 | val_loss 3.439e-03 | val_EM 0.9936 (dia 1 díg. 0.980, mês maiúsc. 0.996) | OOD_EM 0.9944 | lr 9.67e-04 | 63.7s
+04:13:50 | época  8 | train_loss 6.839e-03 | val_loss 1.472e-04 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 0.9916 | lr 9.55e-04 | 64.1s | *melhor*
+04:14:53 | época  9 | train_loss 5.201e-03 | val_loss 2.074e-04 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 9.42e-04 | 62.9s
+04:15:56 | época 10 | train_loss 4.689e-03 | val_loss 3.399e-04 | val_EM 0.9992 (dia 1 díg. 0.993, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 9.27e-04 | 63.0s
+04:16:58 | época 11 | train_loss 3.865e-03 | val_loss 6.161e-04 | val_EM 0.9992 (dia 1 díg. 0.987, mês maiúsc. 1.000) | OOD_EM 0.9996 | lr 9.10e-04 | 62.4s
+04:18:01 | época 12 | train_loss 3.298e-03 | val_loss 8.912e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 8.92e-04 | 62.2s | *melhor*
+04:19:03 | época 13 | train_loss 3.437e-03 | val_loss 1.047e-02 | val_EM 0.9744 (dia 1 díg. 0.993, mês maiúsc. 0.976) | OOD_EM 1.0000 | lr 8.73e-04 | 62.0s
+04:20:05 | época 14 | train_loss 4.496e-03 | val_loss 2.121e-04 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 8.52e-04 | 62.3s
+04:21:08 | época 15 | train_loss 2.407e-03 | val_loss 7.166e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 8.30e-04 | 63.1s | *melhor*
+04:22:10 | época 16 | train_loss 2.450e-03 | val_loss 2.923e-04 | val_EM 0.9996 (dia 1 díg. 0.993, mês maiúsc. 1.000) | OOD_EM 0.9944 | lr 8.07e-04 | 62.3s
+04:23:12 | época 17 | train_loss 3.427e-03 | val_loss 1.514e-04 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 0.9996 | lr 7.83e-04 | 61.6s
+04:24:14 | época 18 | train_loss 2.970e-03 | val_loss 9.367e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 7.57e-04 | 62.4s
+04:25:17 | época 19 | train_loss 2.183e-03 | val_loss 4.863e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 7.31e-04 | 62.2s | *melhor*
+04:26:19 | época 20 | train_loss 1.861e-03 | val_loss 4.468e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 7.05e-04 | 62.8s | *melhor*
+04:27:22 | época 21 | train_loss 1.686e-03 | val_loss 3.828e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 6.77e-04 | 62.4s | *melhor*
+04:28:24 | época 22 | train_loss 1.762e-03 | val_loss 4.454e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 6.49e-04 | 62.4s
+04:29:26 | época 23 | train_loss 2.209e-03 | val_loss 6.806e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 6.21e-04 | 62.3s
+04:30:29 | época 24 | train_loss 4.903e-04 | val_loss 2.391e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 5.93e-04 | 62.3s | *melhor*
+04:31:31 | época 25 | train_loss 1.283e-03 | val_loss 1.749e-04 | val_EM 0.9996 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 0.9952 | lr 5.64e-04 | 62.5s
+04:32:33 | época 26 | train_loss 6.671e-04 | val_loss 9.595e-06 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 5.35e-04 | 61.8s | *melhor*
+04:33:36 | época 27 | train_loss 1.246e-03 | val_loss 1.435e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 5.06e-04 | 62.5s
+04:34:38 | época 28 | train_loss 4.564e-04 | val_loss 1.039e-05 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 4.78e-04 | 62.4s
+04:35:40 | época 29 | train_loss 6.258e-04 | val_loss 3.392e-04 | val_EM 0.9992 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 0.9988 | lr 4.49e-04 | 62.5s
+04:36:43 | época 30 | train_loss 1.934e-04 | val_loss 4.430e-06 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 4.21e-04 | 62.5s | *melhor*
+04:37:45 | época 31 | train_loss 5.817e-04 | val_loss 4.167e-06 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 3.94e-04 | 62.3s | *melhor*
+04:38:48 | época 32 | train_loss 3.240e-04 | val_loss 3.402e-06 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 3.67e-04 | 62.3s | *melhor*
+04:39:50 | época 33 | train_loss 4.741e-06 | val_loss 5.273e-07 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 3.41e-04 | 62.6s | *melhor*
+04:40:52 | época 34 | train_loss 5.834e-07 | val_loss 2.167e-11 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 3.16e-04 | 62.2s | *melhor*
+04:41:55 | época 35 | train_loss 2.563e-08 | val_loss 0.000e+00 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 2.92e-04 | 62.2s | *melhor*
+04:42:57 | época 36 | train_loss 2.434e-04 | val_loss 1.647e-10 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 2.69e-04 | 62.5s
+04:43:59 | época 37 | train_loss 4.271e-04 | val_loss 3.092e-08 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 2.47e-04 | 62.1s
+04:45:01 | época 38 | train_loss 2.416e-06 | val_loss 3.429e-09 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 2.27e-04 | 62.1s
+04:46:04 | época 39 | train_loss 6.598e-05 | val_loss 6.502e-10 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 2.07e-04 | 63.0s
+04:47:07 | época 40 | train_loss 3.886e-05 | val_loss 2.766e-06 | val_EM 1.0000 (dia 1 díg. 1.000, mês maiúsc. 1.000) | OOD_EM 1.0000 | lr 1.89e-04 | 63.1s
+04:47:07 | early stopping: 5 épocas sem melhora da val_loss
+04:47:07 | fim: melhor época 35 (val_loss 0.000e+00) | 2521s no total
+     test: loss 0.000e+00 | exact match 1.0000 | char acc 1.0000 | ano/mês/dia 1.0000/1.0000/1.0000 | saídas válidas 1.0000 | erros 0
+ test_ood: loss 0.000e+00 | exact match 1.0000 | char acc 1.0000 | ano/mês/dia 1.0000/1.0000/1.0000 | saídas válidas 1.0000 | erros 0

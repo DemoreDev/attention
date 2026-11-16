@@ -1,0 +1,44 @@
+{
+  "config": {
+    "name": "exp1",
+    "model": {
+      "d_model": 32,
+      "n_layers": 2,
+      "n_heads": 4,
+      "d_ff": 128,
+      "max_seq_len": 80,
+      "dropout": 0.1
+    },
+    "train": {
+      "batch_size": 64,
+      "lr": 0.001,
+      "warmup_steps": 300,
+      "min_lr": 0.0001,
+      "weight_decay": 0.1,
+      "grad_clip": 1.0,
+      "max_epochs": 50,
+      "early_stopping_patience": 5,
+      "seed": 42,
+      "threads": 5
+    }
+  },
+  "quick": false,
+  "n_parameters": 26560,
+  "vocab_size": 44,
+  "n_train": 20000,
+  "n_val": 2500,
+  "n_ood_monitor": 2500,
+  "steps_per_epoch": 313,
+  "environment": {
+    "python": "3.13.5",
+    "torch": "2.14.1+cpu",
+    "num_threads": 5,
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  }
+}

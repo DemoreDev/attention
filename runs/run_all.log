@@ -1,0 +1,9 @@
+[2026-11-16 04:05:03] rodando os testes
+....                                                                     [100%]
+4 passed in 1.23s
+[2026-11-16 04:05:04] exp1 iniciado (PID 15232, log em runs/exp1/run.log)
+[2026-11-16 04:05:04] exp2 iniciado (PID 15236, log em runs/exp2/run.log)
+[2026-11-16 04:05:04] exp3 iniciado (PID 15242, log em runs/exp3/run.log)
+[2026-11-16 04:16:16] exp1 concluído
+[2026-11-16 04:26:23] exp2 concluído
+[2026-11-16 04:49:17] exp3 concluído

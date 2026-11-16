@@ -1,0 +1,8 @@
+{
+  "best_epoch": 50,
+  "best_val_loss": 8.226740854979653e-08,
+  "epochs_run": 50,
+  "stopped_early": false,
+  "total_steps": 15650,
+  "train_time_s": 1229.7
+}
